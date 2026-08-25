@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>J.A.R.V.I.S.</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="scanlines"></div>
+
+  <main class="console">
+    <header class="header">
+      <div class="core" id="core">
+        <div class="ring ring-1"></div>
+        <div class="ring ring-2"></div>
+        <div class="ring ring-3"></div>
+        <div class="dot"></div>
+      </div>
+      <div class="title-block">
+        <h1>J.A.R.V.I.S.</h1>
+        <p id="status-text">Sistemas en espera</p>
+      </div>
+    </header>
+
+    <section class="chat" id="chat"></section>
+
+    <footer class="controls">
+      <button id="mic-btn" class="mic-btn" title="Hablar">
+        <svg viewBox="0 0 24 24" width="22" height="22">
+          <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+        </svg>
+      </button>
+      <input type="text" id="text-input" placeholder="Escribe una orden o pregunta..." autocomplete="off" />
+      <button id="send-btn" class="send-btn">Enviar</button>
+      <button id="reset-btn" class="reset-btn" title="Reiniciar conversación">↺</button>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
