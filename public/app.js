@@ -6,7 +6,8 @@ const resetBtn = document.getElementById('reset-btn');
 const statusText = document.getElementById('status-text');
 const core = document.getElementById('core');
 
-let voiceEnabled = true; // si el navegador soporta síntesis de voz, JARVIS te responderá hablando
+let voiceEnabled = true; // JARVIS te responderá hablando (voz de ElevenLabs, con respaldo del navegador)
+let currentAudio = null; // referencia al audio que está sonando, para poder detenerlo si hace falta
 
 // ---- Utilidades de chat ----
 function addMessage(text, role) {
@@ -23,7 +24,9 @@ function setStatus(text) {
 }
 
 // ---- Comunicación con el backend ----
-async function sendMessage(message, { reset = false } = {}) {
+async function sendMessage(message, {
+  reset = false
+} = {}) {
   if (!message.trim()) return;
 
   addMessage(message, 'user');
@@ -34,8 +37,13 @@ async function sendMessage(message, { reset = false } = {}) {
   try {
     const res = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, reset })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message,
+        reset
+      })
     });
 
     const data = await res.json();
@@ -67,16 +75,74 @@ resetBtn.addEventListener('click', () => {
   addMessage('Conversación reiniciada.', 'system');
   fetch('/api/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'Hola', reset: true })
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: 'Hola',
+      reset: true
+    })
   }).then(r => r.json()).then(d => {
     if (d.reply) addMessage(d.reply, 'assistant');
   });
 });
 
 // ---- Síntesis de voz (JARVIS habla) ----
-function speak(text) {
-  if (!voiceEnabled || !('speechSynthesis' in window)) return;
+// Primero intenta usar ElevenLabs (voz natural). Si falla, usa la voz del navegador como respaldo.
+async function speak(text) {
+  if (!voiceEnabled) return;
+
+  // Detiene cualquier audio anterior que siga sonando
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+
+  core.classList.add('speaking');
+  setStatus('Hablando...');
+
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        text
+      })
+    });
+
+    if (!res.ok) throw new Error('TTS no disponible');
+
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    currentAudio = new Audio(audioUrl);
+
+    currentAudio.onended = () => {
+      core.classList.remove('speaking');
+      setStatus('Sistemas en espera');
+      URL.revokeObjectURL(audioUrl);
+    };
+
+    currentAudio.onerror = () => {
+      core.classList.remove('speaking');
+      setStatus('Sistemas en espera');
+    };
+
+    await currentAudio.play();
+  } catch (err) {
+    console.warn('ElevenLabs no disponible, usando voz del navegador como respaldo:', err);
+    speakBrowserFallback(text);
+  }
+}
+
+// Respaldo: voz genérica del navegador (por si ElevenLabs falla o no está configurado)
+function speakBrowserFallback(text) {
+  if (!('speechSynthesis' in window)) {
+    core.classList.remove('speaking');
+    setStatus('Sistemas en espera');
+    return;
+  }
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'es-ES';
   utterance.rate = 1.02;
@@ -84,6 +150,12 @@ function speak(text) {
   const voices = speechSynthesis.getVoices();
   const esVoice = voices.find(v => v.lang.startsWith('es'));
   if (esVoice) utterance.voice = esVoice;
+
+  utterance.onend = () => {
+    core.classList.remove('speaking');
+    setStatus('Sistemas en espera');
+  };
+
   speechSynthesis.speak(utterance);
 }
 
